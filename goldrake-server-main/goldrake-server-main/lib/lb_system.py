@@ -1,0 +1,574 @@
+# ==============================================================
+# 		GESTIONE SISTEMA				=
+# ==============================================================
+
+# ==== LIBRERIE DA IMPORTARE ===================================
+import os
+import json
+import time
+import lib.lb_log as lb_log
+from dateutil import tz
+import platform
+import psutil
+import subprocess
+import serial.tools.list_ports
+from pydantic import BaseModel, validator
+from abc import ABC, abstractmethod
+from serial import SerialException
+import socket
+# ==============================================================
+
+class Connection(BaseModel):
+	def try_connection(self):
+		return False, ConnectionError('No connection set')
+	
+	def flush(self):
+		return False, ConnectionError('No connection set')
+
+	def close(self):
+		return False, ConnectionError('No connection set')
+
+	def write(self, cmd):
+		return False, ConnectionError('No connection set')
+
+	def read(self):
+		return False, None, ConnectionError('No connection set')
+
+	def decode_read(self, read):
+		return False, None, ConnectionError('No connection set')
+
+class SerialPort(Connection):
+	baudrate: int = 19200
+	serial_port_name: str
+	timeout: int = 1
+
+	@validator('baudrate', 'timeout', pre=True, always=True)
+	def check_positive(cls, v):
+		if v is not None and v < 1:
+			raise ValueError('Value must be greater than or equal to 1')
+		return v
+
+	@validator('serial_port_name', pre=True, always=True)
+	def check_format(cls, v):
+		if v is not None:
+			result, message = lb_system.exist_serial_port(v)
+			if result is False:
+				raise ValueError(message)
+			result, message = lb_system.enable_serial_port(v)
+			if result is False:
+				raise ValueError(message)
+			result, message = lb_system.serial_port_not_just_in_use(v)
+			if result is False:
+				raise ValueError(message)
+		return v
+
+	def try_connection(self):
+		status = True
+		error_message = None
+		try:
+			global conn
+			if isinstance(conn, serial.Serial) and conn.is_open:
+				conn.flush()
+				conn.close()
+			conn = serial.Serial(port=self.serial_port_name, baudrate=self.baudrate, timeout=self.timeout)
+		except SerialException as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"SerialException on try connection: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on try connection: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on try connection: {error_message}")
+		return status, error_message
+
+	def flush(self):
+		global conn
+		status = True
+		error_message = None
+		try:
+			if isinstance(conn, serial.Serial) and conn.is_open:
+				conn.flush()
+		except SerialException as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"SerialException on flush: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on flush: {error_message}")
+		return status, error_message
+
+	def close(self):
+		global conn
+		status = False
+		error_message = None
+		try:
+			if isinstance(conn, serial.Serial) and conn.is_open:
+				conn.flush()
+				conn.close()
+				conn = None
+				status = True
+		except SerialException as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"SerialException on close: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on close: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on close: {error_message}")
+		return status, error_message
+
+	def write(self, cmd):
+		status = True
+		error_message = None
+		try:
+			global conn
+			status = False
+			if isinstance(conn, serial.Serial) and conn.is_open:
+				command = (cmd + chr(13)+chr(10)).encode()
+				conn.write(command)
+			else:
+				raise SerialException()
+		except SerialException as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"SerialException on write: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on write: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on write: {error_message}")
+		return status, error_message
+
+	def read(self):
+		status = True
+		message = None
+		error_message = None
+		try:
+			global conn
+			read = None
+			if isinstance(conn, serial.Serial) and conn.is_open:
+				message = conn.readline()
+			else:
+				raise SerialException()
+		except SerialException as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"SerialException on read: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on read: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on read: {error_message}")
+		return status, message, error_message
+
+	def decode_read(self, read):
+		status = True
+		message = None
+		error_message = None
+		try:
+			message = read.decode('utf-8', errors='ignore').replace("\r\n", "").strip()
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.info(read)
+			# lb_log.error(f"AttributeError on decode read: {error_message}")
+		return status, message, error_message
+
+class Tcp(Connection):
+	ip: str
+	port: int
+	timeout: float
+
+	@validator('port', pre=True, always=True)
+	def check_positive(cls, v):
+		if v is not None and v < 1:
+			raise ValueError('Value must be greater than or equal to 1')
+		return v
+	
+	@validator('ip', pre=True, always=True)
+	def check_format(cls, v):
+		parts = v.split(".")
+		if len(parts) == 4:
+			for p in parts:
+				if not p.isdigit():
+					raise ValueError('Ip must contains only number and')
+			return v
+		else:
+			raise ValueError('Ip no valid')
+
+	def is_socket_open(self):
+		try:
+			global conn
+			if isinstance(conn, socket.socket) and conn.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR) == 0:
+				return True
+			return False
+		except socket.error:
+			return False
+
+	def try_connection(self):
+		status = True
+		error_message = None
+		try:
+			global conn
+			if self.is_socket_open():
+				conn.close()
+			conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			conn.settimeout(self.timeout)
+			# establish connection with server
+			conn.connect((self.ip, self.port))
+		except socket.error as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"Socket error on try connection: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on try connection: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on try connection: {error_message}")
+		return status, error_message
+
+	def flush(self):
+		global conn
+		status = True
+		error_message = None
+		try:
+			conn.setblocking(False)
+			
+			# Buffer per accumulare i dati ricevuti
+			buffer = b""
+			
+			# Ricevi i dati finché ce ne sono
+			while True:
+				try:
+					data = conn.recv(1024)  # Ricevi fino a 1024 byte alla volta
+					if not data:
+						break  # Se non ci sono più dati nel buffer, esci dal ciclo
+					# Accumula i dati ricevuti nel buffer
+					buffer += data
+					lb_log.info(buffer)
+				except socket.error as e:
+					# Gestisci l'eccezione quando non ci sono dati disponibili nel buffer
+					if e.errno == socket.errno.EWOULDBLOCK:
+						# Nessun dato disponibile nel buffer, esci dal ciclo
+						break
+					else:
+						# Altri errori, gestiscili di conseguenza
+						print("Errore:", e)
+						break
+				finally:
+					conn.setblocking(True)
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on flush: {error_message}")
+		return status, error_message
+
+	def close(self):
+		global conn
+		status = False
+		error_message = None
+		try:
+			if self.is_socket_open():
+				self.flush()
+				conn.close()
+				status = True
+		except socket.error as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"Socket error on close: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on close: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on close: {error_message}")
+		return status, error_message
+
+	def write(self, cmd):
+		status = True
+		error_message = None
+		try:
+			global conn
+			status = False
+			if self.is_socket_open():
+				command = (cmd + chr(13)+chr(10)).encode()
+				conn.send(command[:1024])
+			else:
+				raise socket.error
+		except socket.error as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"Socket error on write: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on write: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on write: {error_message}")
+		return status, error_message
+
+	def read(self):
+		global conn
+		status = False
+		message = None
+		error_message = None
+		try:
+			if self.is_socket_open():
+				message = conn.recv(1024)
+				status = True
+		except socket.error as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"Socket error on write: {error_message}")
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"AttributeError on write: {error_message}")
+		except TypeError as e:
+			status = False
+			error_message = e
+			# lb_log.error(f"TypeError on write: {error_message}")
+		return status, message, error_message
+
+	def decode_read(self, read):
+		status = True
+		message = None
+		error_message = None
+		try:
+			message = read.decode('utf-8', errors='ignore').replace("\r\n", "").strip()
+		except AttributeError as e:
+			status = False
+			error_message = e
+			# lb_log.info(read)
+			# lb_log.error(f"AttributeError on decode read: {error_message}")
+		return status, message, error_message
+
+# ==== FUNZIONE RICHIAMBILI FUORI DALLA LIBRERIA ===============
+def enable_serial_port(port_name):
+    result = False
+    message = None
+    if is_linux():
+        result, message = enable_serial_port_linux(port_name)
+    elif is_windows():
+        result, message = enable_serial_port_windows(port_name)
+    return result, message
+
+def list_serial_port():
+    result = False
+    message = None
+    if is_linux():
+        result, message = list_serial_port_linux()
+    elif is_windows():
+        result, message = list_serial_port_windows()
+    return result, message
+
+def serial_port_not_just_in_use(port_name):
+    result = False
+    message = None
+    if is_linux():
+        result, message = serial_port_not_just_in_use_linux(port_name)
+    elif is_windows():
+        result, message = serial_port_not_just_in_use_windows(port_name)
+    return result, message
+
+def exist_serial_port(port_name):
+    result = False
+    message = None
+    if is_linux():
+        result, message = exist_serial_port_linux(port_name)
+    elif is_windows():
+        result, message = exist_serial_port_windows(port_name)
+    return result, message
+# ==============================================================
+
+# ==== FUNZIONI RICHIAMABILI DENTRO LA LIBRERIA ================
+# Funzione per salvare le configurazioni in un file JSON specificato.
+# Questa funzione scrive le configurazioni memorizzate nelle variabili globali g_config
+# in un file JSON e aggiorna il timestamp dell'ultima modifica del file di configurazione.
+def is_linux():
+    """
+    Funzione per controllare se il sistema operativo è Linux.
+
+    Restituisce:
+        True se il sistema operativo è Linux, False altrimenti.
+    """
+    return platform.system().lower() == "linux"
+
+def is_windows():
+    """
+    Funzione per controllare se il sistema operativo è Windows.
+
+    Restituisce:
+        True se il sistema operativo è Windows, False altrimenti.
+    """
+    return platform.system().lower() == "windows"
+
+def enable_serial_port_linux(port_name):
+    """
+    Funzione per abilitare la porta seriale in lettura e scrittura per tutti gli utenti.
+    """
+
+    try:
+        # Controlla se il file esiste
+        if not os.path.exists(port_name):
+            message = "Errore: La porta seriale " + port_name + " non esiste."
+            lb_log.info(message)
+            return False, message
+
+        # Modifica i permessi del file
+        os.chmod(port_name, 0o666)
+
+        # Controlla se i permessi sono stati modificati correttamente
+        if not os.path.exists(port_name) or not os.access(port_name, os.W_OK):
+            message = "Errore: Impossibile modificare i permessi del file."
+            lb_log.info(message)
+            return False, message
+
+        message = "Porta seriale " + port_name + " abilitata correttamente."
+        lb_log.info(message)
+        return True, message
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+
+def enable_serial_port_windows(port_name):
+    try:
+        import winreg
+
+        """
+        Funzione per abilitare la porta seriale specificata in lettura e scrittura su Windows.
+
+        Args:
+            port_name: Nome della porta seriale (es. "COM1").
+        """
+
+        # Controlla se la porta seriale è valida
+        if not port_name.startswith("COM"):
+            message = f"Errore: Porta seriale non valida: {port_name}"
+            lb_log.info(message)
+            return False, message
+
+        # Aprire la chiave del Registro di sistema
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                            "SYSTEM\\CurrentControlSet\\Services\\Serial\\Parameters",
+                            0, winreg.KEY_WRITE)
+
+        # Impostare il valore DWORD "PortName"
+        winreg.SetValueEx(key, "PortName", 0, winreg.REG_SZ, port_name)
+
+        # Impostare il valore DWORD "BaudRate" (opzionale)
+        winreg.SetValueEx(key, "BaudRate", 0, winreg.REG_DWORD, 9600)
+
+        # Impostare il valore DWORD "Parity" (opzionale)
+        winreg.SetValueEx(key, "Parity", 0, winreg.REG_DWORD, 0)
+
+        # Impostare il valore DWORD "DataBits" (opzionale)
+        winreg.SetValueEx(key, "DataBits", 0, winreg.REG_DWORD, 8)
+
+        # Impostare il valore DWORD "StopBits" (opzionale)
+        winreg.SetValueEx(key, "StopBits", 0, winreg.REG_DWORD, 1)
+
+        # Chiudere la chiave del Registro di sistema
+        winreg.CloseKey(key)
+
+        # Riavviare il servizio "Serial"
+        os.system("net stop Serial")
+        os.system("net start Serial")
+
+        message = f"Porta seriale {port_name} abilitata correttamente."
+        lb_log.info(message)
+        return True, message
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+
+def list_serial_port_linux():
+    try:
+        ports = serial.tools.list_ports.comports()
+        serial_ports = []
+        for port, desc, hwid in sorted(ports):
+            serial_ports.append(port)
+        return True, serial_ports
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+
+def list_serial_port_windows():
+    try:
+        ports = serial.tools.list_ports.comports()
+        serial_ports = []
+        for port, desc, hwid in sorted(ports):
+            serial_ports.append(port)
+        return True, serial_ports
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+
+def serial_port_not_just_in_use_linux(port_name):
+    """
+    Checks if the specified serial port is in use using `fuser`.
+
+    Args:
+        port: The serial port to check (e.g., "/dev/ttyS0").
+
+    Returns:
+        True if the port is in use, False otherwise.
+    """
+    try:
+        # Execute fuser with options to check serial port usage
+        process = subprocess.run(["fuser", "-s", port_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        # Non-zero return code from fuser indicates port usage
+        message = f"Port {port_name} is just in use"
+        return False, message
+    except subprocess.CalledProcessError:
+        # Handle potential errors (e.g., fuser not found)
+        return True, None
+
+def serial_port_not_just_in_use_windows(port_name):
+    try:
+        return True, None
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+
+def exist_serial_port_linux(port_name):
+    try:
+        # Controlla se il file esiste
+        if not os.path.exists(port_name):
+            message = "Errore: La porta seriale " + port_name + " non esiste."
+            lb_log.info(message)
+            return False, message
+        return True, None
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+
+def exist_serial_port_windows(port_name):
+    try:
+        return True, None
+    except Exception as e:
+        lb_log.error(e)
+        return False, e
+# ==============================================================
