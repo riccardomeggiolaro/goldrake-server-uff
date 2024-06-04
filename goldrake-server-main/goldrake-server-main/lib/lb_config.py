@@ -149,8 +149,9 @@ def init():
 	global g_defalogfile  # Variabile per memorizzare il percorso del file di log predefinito.
 	global g_tz  # Variabile per memorizzare il fuso orario predefinito.
 	global config_path  # Variabile per memorizzare il percorso della configurazione.
+	global database_path
 
-		# Ottiene il percorso della directory del modulo corrente.
+	# Ottiene il percorso della directory del modulo corrente.
 	# Determina il percorso base a seconda se l'applicazione è in esecuzione come eseguibile o come sorgente
 	base_path = sys._MEIPASS if hasattr(sys, 'frozen') else os.path.abspath(".")
 	config_path = os.path.join(base_path, "")

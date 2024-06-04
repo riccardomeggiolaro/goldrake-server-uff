@@ -15,7 +15,7 @@
             "connection": {
                 "ip": "192.168.0.225",
                 "port": 4101,
-                "timeout": 10
+                "timeout": 2
             },
             "nodes": [
                 {
@@ -26,7 +26,8 @@
                     "min_weight": 20,
                     "node": "01"
                 }
-            ]
+            ],
+            "time_between_actions": 0.1
         }
     },
     "log": {

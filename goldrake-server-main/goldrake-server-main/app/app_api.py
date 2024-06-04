@@ -49,6 +49,9 @@ import serial.tools.list_ports as ports
 from pydantic import ValidationError
 import modules.md_weigher as weigher
 import modules.md_rfid as rfid
+from modules.md_weigher import DataInExecution
+import lib.lb_database as lb_database
+from datetime import datetime
 # ==============================================================
 
 # ==== FUNZIONI RICHIAMABILI DENTRO LA APPLICAZIONE =================
@@ -60,12 +63,24 @@ def Callback_Realtime(pesa_real_time: dict):
 # Callback che verrà chiamata dal modulo dgt1 quando viene ritornata un stringa di diagnostica
 def Callback_Diagnostic(diagnostic: dict):
 	asyncio.run(manager_diagnostic.broadcast(diagnostic))
-	lb_log.info(diagnostic)
+	lb_log.info(diagnostic["data_assigned"])
 
 # Callback che verrà chiamata dal modulo dgt1 quando viene ritornata un stringa di pesata
 def Callback_Weighing(last_pesata: dict):
+	last_pesata = last_pesata.__dict__
 	asyncio.run(manager_data_in_execution.broadcast(last_pesata))
-	lb_log.info(last_pesata)
+	conn = lb_database.create_connection()
+	if last_pesata["data_assigned"] is None:
+		lb_log.info(last_pesata)
+		data = last_pesata["weight_executed"].__dict__
+		last_pesata["datetime"] = str(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+		last_pesata["type"] = 3
+		lb_database.add_data(conn, last_pesata)
+	elif isinstance(last_pesata["data_assigned"], DataInExecution):
+    		lb_log.info("WEGHING 1")
+	elif isinstance(last_pesata["data_assigned"], int):
+		lb_log.info("WEIGHING 2")
+	conn.close()
 
 def Callback_TarePTareZero(ok_value: str):
 	result = {"command_executend": ok_value}
@@ -142,8 +157,7 @@ def mainprg():
 
 	@app.get("/print")
 	async def Print(node: Optional[str] = None):
-		data = weigher.DataInExecution(**{})
-		result, status_modope, command_execute = weigher.setModope(node=node, modope="WEIGHING", data_assigned=data)
+		result, status_modope, command_execute = weigher.setModope(node=node, modope="WEIGHING", data_assigned=None)
 		if result:
 			return {
 				"result": result,
@@ -297,6 +311,17 @@ def mainprg():
 			"connected": connected,
 			"connection": conn,
 			"message": message
+		}
+
+	@app.patch("/config_weigher/time_between_actions/{time}")
+	async def SetTimeBetweenActions(time: Union[int, float]):
+		if time < 0:
+			return {
+				"message": "Time must be greater or same than 0"
+			}
+		result = weigher.setTimeBetweenActions(time=time)
+		return {
+			"time_between_actions": result
 		}
 
 	@app.delete("/config_weigher/connection")
@@ -461,6 +486,7 @@ def init():
 
 	rfid.setAction(cb_cardcode=Callback_Cardcode)
 
+	lb_database.createConnection()
 	# if lb_config.g_config["app_api"]["rfid"]["connection"] != None:
 	# 	config = (**lb_config.g_config["app_api"]["rfid"])
 	# 	setup = info["class_setup"](**lb_config.g_config["app_api"]["rfid"]["setup"])

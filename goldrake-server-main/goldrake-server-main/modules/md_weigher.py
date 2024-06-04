@@ -307,6 +307,7 @@ class SetupWeigherConfig(SetupWeigher):
 						# controllo che il peso sia maggiore o uguale al peso minimo richiesto
 						if self.pesa_real_time.gross_weight != "" and self.pesa_real_time.status == "ST" and int(self.pesa_real_time.gross_weight) >= self.min_weight and int(self.pesa_real_time.gross_weight) <= self.max_weight:
 							self.weight.data_assigned = data_assigned
+							lb_log.info(data_assigned)
 						else:
 							return 500 # ritorno errore se il peso non era valido
 					self.modope_to_execute = mod # se tutte le condizioni sono andate a buon fine imposto il mod passato come comando da eseguire
@@ -561,10 +562,9 @@ class SetupWeigherConfig(SetupWeigher):
 					self.pesa_real_time.status = ""
 		# se lo stato della pesa è 301 e initializated è uguale a True prova a ristabilire una connessione con la pesa
 		else:
-			if self.diagnostic.status in [305]:
+			if self.diagnostic.status in [305, 301]:
 				self.initialize()
 				self.flush()
-		time.sleep(0.1)
 
 class Connection(BaseModel):
 	def try_connection(self):
@@ -874,6 +874,7 @@ class Tcp(Connection):
 class Configuration(BaseModel):
 	nodes: List[SetupWeigher] = []
 	connection: Union[SerialPort, Tcp, Connection, None] = None
+	time_between_actions: Union[int, float]
 
 	@validator('connection', pre=True, always=True)
 	def check_connection(cls, v):
@@ -886,6 +887,7 @@ class ConfigWeigher():
 
 	nodes: List[SetupWeigherConfig] = []
 	connection: Union[SerialPort, Tcp, Connection] = Connection(**{})
+	time_between_actions: Union[int, float]
 
 	def __init__(self):
 		conn = self.connection
@@ -893,7 +895,8 @@ class ConfigWeigher():
 	def getConfig(self):
 		return {
 			"connection": self.connection.dict(),
-			"nodes": [node.dict() for node in self.nodes]
+			"nodes": [node.dict() for node in self.nodes],
+			"time_between_actions": self.time_between_actions
 		}
 
 	def deleteConfig(self):
@@ -1054,9 +1057,12 @@ def mainprg():
 	global config
 	while lb_config.g_enabled:
 		for node in config.nodes:
+			time_start = time.time()
 			node.main()
-		if len(config.nodes) == 0:
-			time.sleep(0.1)
+			time_end = time.time()
+			time_execute = time_end - time_start
+			timeout = max(0, config.time_between_actions - time_execute)
+			time.sleep(timeout)
 # ==============================================================
 
 # ==== START ===================================================
@@ -1082,6 +1088,7 @@ def initialize(configuration: Configuration):
 	config.connection = configuration.connection
 	connected, message = config.connection.try_connection()
 	config.nodes = []
+	config.time_between_actions = configuration.time_between_actions
 	for node in configuration.nodes:
 		n = SetupWeigherConfig(**node.dict())
 		n.initialize()
@@ -1132,6 +1139,11 @@ def deleteNode(node: Union[str, None]):
 	global config
 	response = config.deleteNode(node=node)
 	return response
+
+def setTimeBetweenActions(time: Union[int, float]):
+    global config
+    config.time_between_actions = time
+    return config.time_between_actions
 
 def getDataInExecution(node: Union[str, None]):
 	global config
