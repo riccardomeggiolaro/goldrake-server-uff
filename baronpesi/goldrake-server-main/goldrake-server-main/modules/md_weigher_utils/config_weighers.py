@@ -1,14 +1,13 @@
 from lib.lb_system import Connection, SerialPort, Tcp
 from typing import List, Union, Callable
 from modules.md_weigher_utils.dto import SetupWeigherDTO
-from modules.md_weigher_utils.types import DataInExecution, SetupWeigher
+from modules.md_weigher_utils.types import DataInExecution
 from modules.md_weigher_utils.terminals.dgt1 import Dgt1
 import lib.lb_log as lb_log
 from modules.md_weigher_utils.utils import terminalsClasses
 
 class ConfigWeigher():
-	nodes: List[SetupWeigher] = []
-	connection: Union[SerialPort, Tcp, Connection] = Connection(**{})
+	nodes = []
 	time_between_actions: Union[int, float]
 
 	def getConfig(self):
@@ -96,7 +95,7 @@ class ConfigWeigher():
 		result = None
 		if len(node_found) is not 0:
 			result = node_found[0].setSetup(setup)
-			if node_found[0].diagnostic == 301 and self.connection is not None:
+			if node_found[0].diagnostic in [301, 305] and self.connection is not None:
 				node_found[0].initialize()
 		return result
 

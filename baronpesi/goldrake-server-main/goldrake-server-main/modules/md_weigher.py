@@ -5,6 +5,8 @@
 # = Last rev....: 0.0002					   =
 # ==============================================================
 
+from modules.md_weigher_utils.utils import connection, weighers, time_between_actions
+
 # ==== LIBRERIE DA IMPORTARE ===================================
 import inspect
 __frame = inspect.currentframe()
@@ -18,33 +20,32 @@ import copy
 from pydantic import BaseModel, validator
 import re
 from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher_utils.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic, SetupWeigher
-from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO
+from modules.md_weigher_utils.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
+from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
 from modules.md_weigher_utils.utils import callCallback, checkCallbackFormat
-from modules.md_weigher_utils.config_weigher import ConfigWeigher
+from modules.md_weigher_utils.config_weighers import ConfigWeigher
 from modules.md_weigher_utils.terminals.dgt1 import Dgt1
+from lib.lb_system import ConfigConnection
+from modules.md_weigher_utils.setup_weigher import SetupWeigher
+from modules.md_weigher_utils.utils import terminalsClasses
 # ==============================================================
 
 # ==== INIT ====================================================
 # funzione che dichiara tutte le globali
 def init():
 	lb_log.info("init")
-	global config
-
-	config = ConfigWeigher()
 # ==============================================================
 
 # ==== MAINPRGLOOP =============================================
 # funzione che scrive e legge in loop conn e in base alla stringa ricevuta esegue funzioni specifiche
 def mainprg():
-	global config
 	while lb_config.g_enabled:
-		for node in config.nodes:
+		for weigher in weighers:
 			time_start = time.time()
-			node.main()
+			weigher.main()
 			time_end = time.time()
 			time_execute = time_end - time_start
-			timeout = max(0, config.time_between_actions - time_execute)
+			timeout = max(0, time_between_actions - time_execute)
 			time.sleep(timeout)
 # ==============================================================
 
@@ -58,98 +59,124 @@ def start():
 # ==============================================================
 
 def stop():
-	global config
-	result = config.deleteConnection()
+	result = connection.deleteConnection()
 	lb_log.info(f"Result {result}")
 
 # ==== FUNZIONI RICHIAMABILI DA MODULI ESTERNI =================
 def initialize(configuration: ConfigurationDTO):
+	global time_between_actions
 	lb_log.info("initialize")
-	global config
 	# inizializzazione della conn
 	connected, message = False, None
-	config.connection = configuration.connection
-	connected, message = config.connection.try_connection()
-	config.nodes = []
-	config.time_between_actions = configuration.time_between_actions
+	connection.connection = configuration.connection
+	connected, message = connection.connection.try_connection()
+	time_between_actions = configuration.time_between_actions
 	for node in configuration.nodes:
 		node_dict = node.dict()
-		node_dict["conn"] = config.connection
 		n = Dgt1(**node_dict)
 		n.initialize()
-		config.nodes.append(n)
+		weighers.append(n)
 		# ottenere firmware e nome del modello
 	return connected, message # ritorno True o False in base se status della pesa è 200
 
-import json
-
 def getConfig():
-	global config
-	return config.getConfig()
+	conn = connection.getConnection()
+	nodes_dict = [n.getSetup() for n in weighers]
+	return {
+		"connection": conn,
+		"nodes": nodes_dict,
+		"time_between_actions": time_between_actions
+	}
 
 def deleteConfig():
-	global config
-	result, message = config.deleteConfig()
-	return result, message
+	global weighers
+	global time_between_actions
+	connection.deleteConnection()
+	weighers = []
+	time_between_actions = 0
+	return getConfig()
 
 def getConnection():
-	global config
-	return config.getConnection()
+	return connection.getConnection()
 
-def setConnection(connection: Union[SerialPort, Tcp]):
-	global config
+def setConnection(conn: Union[SerialPort, Tcp]):
 	deleteConnection()
-	connected, connection, message = config.setConnection(connection=connection)
-	return connected, connection, message
+	connected = connection.setConnection(connection=conn)
+	for weigher in weighers:
+		weigher.initialize()
+	return connected
 
 def deleteConnection():
-	global config
-	response = config.deleteConnection()
+	response = connection.deleteConnection()
 	return response
 
 def getNodes():
-    global config
-    return config.getNodes()
+	global weighers
+	nodes_dict = []
+	for weigher in weighers:
+		n = weigher.getSetup()
+		nodes_dict.append(n)
+	return nodes_dict
 
 def getNode(node: Union[str, None]):
-	global config
-	result = config.getNode(node=node)
+	result = None
+	data = [n for n in weighers if n.node == node]
+	if len(data) > 0:
+		result = data[0].getSetup()
 	return result
 
-def addNode(node: SetupWeigher):
-	global config
-	node_to_add = config.addNode(node=node)
-	return node_to_add
+def addNode(node: SetupWeigherDTO):
+	node_to_add = node.dict()
+	terminalClass = [terminal for terminal in terminalsClasses if terminal["terminal"] == node.terminal]			
+	n = terminalClass[0]["class"](**node_to_add)
+	if connection is not None:
+		n.initialize()
+	weighers.append(n)
+	return n.getSetup()
 
-def setNode(node: Union[str, None], setup: SetupWeigherDTO = {}):
-	global config
-	response = config.setNode(node=node, setup=setup)
-	return response
+def setNode(node: Union[str, None], setup: ChangeSetupWeigherDTO = {}):
+	node_found = [n for n in weighers if n.node == node]
+	result = None
+	if len(node_found) is not 0:
+		result = node_found[0].setSetup(setup)
+		if setup.terminal:
+			node_to_changed = SetupWeigher(**result)
+			deleteNode(node_to_changed.node)
+			addNode(node_to_changed)
+		else:
+			node_found[0].initialize()
+	return result
 
 def deleteNode(node: Union[str, None]):
-	global config
-	response = config.deleteNode(node=node)
+	node_found = [n for n in weighers if n.node == node]
+	response = False
+	if len(node_found) is not 0:
+		weighers.remove(node_found[0])
+		response = True
 	return response
 
 def setTimeBetweenActions(time: Union[int, float]):
-    global config
-    config.time_between_actions = time
-    return config.time_between_actions
+    global time_between_actions
+    time_between_actions = time
+    return time_between_actions
 
 def getDataInExecution(node: Union[str, None]):
-	global config
-	result = config.getDataInExecution(node=node)
-	return result
+	node_found = [n for n in weighers if n.node == node]
+	if len(node_found) > 0:
+		return node_found[0].getDataInExecution()
+	return node_found
 
 def setDataInExecution(node: Union[str, None], data_in_execution: DataInExecution):
-	global config
-	result = config.setDataInExecutions(node=node, data_in_execution=data_in_execution)
-	return result
+	node_found = [n for n in weighers if n.node == node]
+	if len(node_found) > 0:
+		return node_found[0].setDataInExecution(data_in_execution)
+	return node_found
 
 def deleteDataInExecution(node: Union[str, None]):
-	global config
-	result = config.deleteDataInExecution(node=node)
-	return result
+	node_found = [n for n in weighers if n.node == node]
+	if len(node_found) > 0:
+		return node_found[0].deleteDataInExecution()
+	return node_found
 
 # Funzione per settare le funzioni di callback
 # I parametri possono essere omessi o passati come funzioni che hanno un solo parametro come
@@ -187,15 +214,27 @@ def deleteDataInExecution(node: Union[str, None]):
 # funzione per impostare la diagnostica continua
 # DIAGNOSTICS, REALTIME, WEIGHING, TARE, PRESETTARE, ZERO
 def setModope(node: Union[str, None], modope, presettare=0, data_assigned = None):
-	global config
-	status, status_modope, command_execute = config.setModope(node=node, modope=modope, presettare=presettare, data_assigned=data_assigned)
+	node_found = [n for n in weighers if n.node == node]
+	status, status_modope, command_execute = False, None, False
+	if len(node_found) is not 0:
+		status = True
+		status_modope = node_found[0].setModope(mod=modope, presettare=presettare, data_assigned=data_assigned)
+		command_execute = status_modope == 100
 	return status, status_modope, command_execute
 
 def setActionNode(node: Union[str, None], cb_realtime: Callable[[dict], any] = None, cb_diagnostic: Callable[[dict], any] = None, cb_weighing: Callable[[dict], any] = None, cb_tare_ptare_zero: Callable[[str], any] = None):
-	global config
-	config.setActionNode(node=node, cb_realtime=cb_realtime, cb_diagnostic=cb_diagnostic, cb_weighing=cb_weighing, cb_tare_ptare_zero=cb_tare_ptare_zero)
+	global weighers
+	node_found = [n for n in weighers if n.node == node]
+	if len(node_found) > 0:
+		node_found[0].setAction(
+			cb_realtime=cb_realtime,
+			cb_diagnostic=cb_diagnostic,
+			cb_weighing=cb_weighing,
+			cb_tare_ptare_zero=cb_tare_ptare_zero
+		)
 
 def setAction(cb_realtime: Callable[[dict], any] = None, cb_diagnostic: Callable[[dict], any] = None, cb_weighing: Callable[[dict], any] = None, cb_tare_ptare_zero: Callable[[str], any] = None):
-	global config
-	config.setAction(cb_realtime=cb_realtime, cb_diagnostic=cb_diagnostic, cb_weighing=cb_weighing, cb_tare_ptare_zero=cb_tare_ptare_zero)
+	global weighers
+	for weigher in weighers:
+		weigher.setAction(cb_realtime=cb_realtime, cb_diagnostic=cb_diagnostic, cb_weighing=cb_weighing, cb_tare_ptare_zero=cb_tare_ptare_zero)
 # ==============================================================

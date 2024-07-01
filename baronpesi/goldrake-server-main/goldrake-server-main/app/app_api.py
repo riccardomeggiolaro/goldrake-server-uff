@@ -52,7 +52,7 @@ import modules.md_weigher as weigher
 from modules.md_weigher import DataInExecution
 import lib.lb_database as lb_database
 from datetime import datetime
-from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO
+from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
 from lib.lb_system import SerialPort, Tcp
 # ==============================================================
 
@@ -206,8 +206,20 @@ def mainprg():
 			raise HTTPException(status_code=404, detail='Not found')
 
 	@app.patch("/set/data_in_execution")
-	async def SetDataInExecution(node: Optional[str] = None, data: weigher.DataInExecution = {}):
+	async def SetDataInExecution(node: Optional[str] = None, data: DataInExecution = {}):
 		result = weigher.setDataInExecution(node=node, data_in_execution=data)
+		if result:
+			await manager_data_in_execution.broadcast(result)
+			return {
+				"node": node,
+				"data_in_execution": result
+			}
+		else:
+			raise HTTPException(status_code=404, detail='Not found')
+
+	@app.delete("/delete/data_in_execution")
+	async def DeleteDataInExecution(node: Optional[str] = None):
+		result = weigher.deleteDataInExecution(node=node)
 		if result:
 			await manager_data_in_execution.broadcast(result)
 			return {
@@ -260,7 +272,7 @@ def mainprg():
 		return result
 
 	@app.patch("/config_weigher/node")
-	async def SetConfigWeigherSetup(node: Optional[str] = None, setup: SetupWeigherDTO = {}):
+	async def SetConfigWeigherSetup(node: Optional[str] = None, setup: ChangeSetupWeigherDTO = {}):
 		if node == "null":
 			node = None
 		response = weigher.setNode(node, setup)
@@ -296,11 +308,8 @@ def mainprg():
 	@app.patch("/config_weigher/connection")
 	async def SetConfigWeigherConnection(connection: Union[SerialPort, Tcp]):
 		connected, conn, message = weigher.setConnection(connection)
-		if connected:
-			lb_config.g_config["app_api"]["weigher"]["connection"] = conn.dict()
-			lb_config.saveconfig()
-			configuration = ConfigurationDTO(**lb_config.g_config["app_api"]["weigher"])
-			result = weigher.initialize(configuration=configuration)
+		lb_config.g_config["app_api"]["weigher"]["connection"] = conn
+		lb_config.saveconfig()
 		return {
 			"connected": connected,
 			"connection": conn,
@@ -314,6 +323,8 @@ def mainprg():
 				"message": "Time must be greater or same than 0"
 			}
 		result = weigher.setTimeBetweenActions(time=time)
+		lb_config.g_config["app_api"]["weigher"]["time_between_actions"] = result
+		lb_config.saveconfig()
 		return {
 			"time_between_actions": result
 		}
@@ -432,11 +443,11 @@ def start():
 # ==============================================================
 
 def stop():
-	port = lb_config.g_config["app_api"]["port"]
-	connection = [conn for conn in psutil.net_connections() if conn.laddr.port == port] 
-	print(f"Chiudendo il processo che utilizza la porta {port}...")
 	try:
-		p = psutil.Process(connection[0].pid)
+		port = lb_config.g_config["app_api"]["port"]
+		connection = [conn for conn in psutil.net_connections() if conn.laddr.port == port] 
+		print(f"Chiudendo il processo che utilizza la porta {port}...")
+		p = psutil.Process(connection[-1].pid)
 		p.kill()
 		p.wait(timeout=5)  # Attendere al massimo 5 secondi per la chiusura
 		print(f"Processo sulla porta {port} chiuso con successo.")

@@ -1,10 +1,11 @@
-from modules.md_weigher_utils.types import Realtime, Diagnostic, Weight, DataInExecution, SetupWeigher
+from modules.md_weigher_utils.types import Realtime, Diagnostic, Weight, DataInExecution
 from modules.md_weigher_utils.utils import terminalsClasses
 from typing import Callable, Union
 from modules.md_weigher_utils.dto import SetupWeigherDTO
 import lib.lb_log as lb_log
 from modules.md_weigher_utils.utils import checkCallbackFormat, callCallback
 import re
+from modules.md_weigher_utils.setup_weigher import SetupWeigher
 
 class Dgt1(SetupWeigher):
 	pesa_real_time: Realtime = Realtime(**{
@@ -53,14 +54,8 @@ class Dgt1(SetupWeigher):
 		"material": None
 	})
 
-	def deleteDataInExecution(self):
-		self.data_in_execution = DataInExecution(**{
-			"customer": None,
-			"supplier": None,
-			"plate": None,
-			"vehicle": None,
-			"material": None
-		})
+	def getDataInExecution(self):
+		return self.data_in_execution.dict()
 
 	def setDataInExecution(self, data: DataInExecution):
 		for key, value in data:
@@ -70,6 +65,17 @@ class Dgt1(SetupWeigher):
 				self.data_in_execution.setAttribute(key=key, value=None)
 			else:
 				self.data_in_execution.setAttribute(key, value)
+		return self.getDataInExecution()
+
+	def deleteDataInExecution(self):
+		self.data_in_execution = DataInExecution(**{
+			"customer": None,
+			"supplier": None,
+			"plate": None,
+			"vehicle": None,
+			"material": None
+		})
+		return self.getDataInExecution()
 
 	def maintaineSessionRealtime(self):
 		if self.maintaine_session_realtime_after_command:
@@ -222,7 +228,7 @@ class Dgt1(SetupWeigher):
 			# se non ottiene la risposta o la lunghezza della stringa non è 12 manda errore
 			else:
 				# lb_log.info(response)
-				raise ConnectionError("No response get")
+				raise ConnectionError("No connection set")
 			# ottenere numero conn
 			self.setModope("SN")
 			self.command()
@@ -232,7 +238,7 @@ class Dgt1(SetupWeigher):
 				self.diagnostic.serial_number = value
 			# se non ottiene la risposta o la lughezza della stringa non è 13 manda errore
 			else:
-				raise ConnectionError("SN No response get")
+				raise ConnectionError("No connection set")
 			# controllo se ho ottenuto firmware, nome modello e numero conn
 			if self.diagnostic.firmware and self.diagnostic.model_name and self.diagnostic.serial_number:
 				self.diagnostic.status = 200 # imposto status della pesa a 200 per indicare che è accesa
@@ -261,6 +267,7 @@ class Dgt1(SetupWeigher):
 		}
 
 	def main(self):
+		lb_log.info(self.diagnostic.status)
 		if self.diagnostic.status in [200, 307]:
 			self.command() # eseguo la funzione command() che si occupa di scrivere il comando sulla pesa in base al valore del modope_to_execute nel momento in cui ho chiamato la funzione
 			response = self.read()
@@ -359,7 +366,7 @@ class Dgt1(SetupWeigher):
 					if length_response == 2 and response == "OK":
 						lb_log.info(response)
 				else:
-					self.diagnostic.status = 301
+					self.diagnostic.status = 305
 			if not response:
 				self.diagnostic.vl = ""
 				self.diagnostic.rz = ""
@@ -378,7 +385,7 @@ class Dgt1(SetupWeigher):
 				self.weight.weight_executed.status = ""
 				self.weight.data_assigned = None
 				self.ok_value = ""
-				self.diagnostic.status = 301
+				self.diagnostic.status = 305
 				if self.modope == "WEIGHING":
 					self.weight.status = self.diagnostic.status
 					callCallback(self.callback_weighing)
@@ -393,10 +400,8 @@ class Dgt1(SetupWeigher):
 					self.pesa_real_time.status = ""
 		# se lo stato della pesa è 301 e initializated è uguale a True prova a ristabilire una connessione con la pesa
 		else:
-			if self.diagnostic.status in [305, 301]:
-				self.initialize()
-				self.flush()
-
+			pass
+			
 terminalsClasses.append({
 	"terminal": "dgt1",
 	"class": Dgt1

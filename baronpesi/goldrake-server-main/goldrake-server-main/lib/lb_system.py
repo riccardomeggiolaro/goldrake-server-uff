@@ -16,30 +16,30 @@ from pydantic import BaseModel, validator
 from abc import ABC, abstractmethod
 from serial import SerialException
 import socket
-from typing import Optional
+from typing import Optional, Union
 # ==============================================================
 
 class Connection(BaseModel):
 	def try_connection(self):
-		return False, ConnectionError('No connection set')
+		return False, ConnectionError('Try connection: No connection set')
 	
 	def flush(self):
-		return False, ConnectionError('No connection set')
+		return False, ConnectionError('Flush: No connection set')
 
 	def close(self):
-		return False, ConnectionError('No connection set')
+		return False, ConnectionError('Close: No connection set')
 
 	def write(self, cmd):
-		return False, ConnectionError('No connection set')
+		return False, ConnectionError('Write: No connection set')
 
 	def read(self):
-		return False, None, ConnectionError('No connection set')
+		return False, None, ConnectionError('Read: No connection set')
 
 	def decode_read(self, read):
-		return False, None, ConnectionError('No connection set')
+		return False, None, ConnectionError('Decode read: No connection set')
 
 	def is_open(self):
-		return False, None, ConnectionError('No connection set')
+		return False, None, ConnectionError('Is open: No connection set')
 
 class SerialPort(Connection):
 	baudrate: int = 19200
@@ -224,28 +224,25 @@ class Tcp(Connection):
 		try:
 			if isinstance(self.conn, socket.socket) and self.conn.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR) == 0:
 				return True
-			lb_log.info("No")
 			return False
 		except socket.error:
-			lb_log.info("No")
 			return False
 
 	def try_connection(self):
 		status = True
 		error_message = None
 		try:
-			if isinstance(self.conn, serial.Serial) and self.conn.is_open:
-				self.conn.flush()
+			if isinstance(self.conn, socket.socket):
 				self.conn.close()
 			self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.conn.setblocking(False)
 			self.conn.settimeout(self.timeout)
 			# establish connection with server
 			self.conn.connect((self.ip, self.port))
-		except socket.error as e:
+		except Exception as e:
 			status = False
 			error_message = e
-			# lb_log.error(f"Socket error on try connection: {error_message}")
+			lb_log.info(e)
 		return status, error_message
 
 	def flush(self):
@@ -263,22 +260,21 @@ class Tcp(Connection):
 					buffer += data
 				except BlockingIOError as e:
 					break
-		except socket.error as e:
+		except Exception as e:
 			status = False
 			error_message = e
+			lb_log.info(e)
 		return status, error_message
 
 	def close(self):
 		status = False
 		error_message = None
 		try:
-			self.flush()
 			self.conn.close()
 			status = True
-		except socket.error as e:
+		except Exception as e:
 			status = False
 			error_message = e
-			# lb_log.error(f"Socket error on close: {error_message}")
 		return status, error_message
 
 	def write(self, cmd):
@@ -299,8 +295,9 @@ class Tcp(Connection):
 		message = None
 		error_message = None
 		try:
-			message = self.conn.recv(1024)
-			status = True
+			if self.is_open():
+				message = self.conn.recv(1024)
+				status = True
 		except BlockingIOError as e:
 			status = False
 			error_message = e
@@ -322,6 +319,28 @@ class Tcp(Connection):
 			# lb_log.info(read)
 			# lb_log.error(f"AttributeError on decode read: {error_message}")
 		return status, message, error_message
+
+class ConfigConnection():
+	connection: Union[SerialPort, Tcp, Connection] = Connection(**{})
+	
+	def getConnection(self):
+		conn = self.connection.copy().dict()
+		if "conn" in conn:
+			del conn["conn"]
+		return conn
+
+	def setConnection(self, connection: Union[SerialPort, Tcp]):
+		connected, message = False, None
+		self.deleteConnection()
+		self.connection = connection
+		connected, message = self.connection.try_connection()
+		conn = self.getConnection()
+		return connected, conn, message
+
+	def deleteConnection(self):
+		status, message = self.connection.close()
+		self.connection = Connection(**{})
+		return status
 
 # ==== FUNZIONE RICHIAMBILI FUORI DALLA LIBRERIA ===============
 def enable_serial_port(port_name):
