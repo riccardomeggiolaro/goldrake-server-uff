@@ -23,10 +23,8 @@ from lib.lb_system import Connection, SerialPort, Tcp
 from modules.md_weigher_utils.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
 from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
 from modules.md_weigher_utils.utils import callCallback, checkCallbackFormat
-from modules.md_weigher_utils.config_weighers import ConfigWeigher
 from modules.md_weigher_utils.terminals.dgt1 import Dgt1
 from lib.lb_system import ConfigConnection
-from modules.md_weigher_utils.setup_weigher import SetupWeigher
 from modules.md_weigher_utils.utils import terminalsClasses
 # ==============================================================
 
@@ -140,7 +138,7 @@ def setNode(node: Union[str, None], setup: ChangeSetupWeigherDTO = {}):
 	if len(node_found) is not 0:
 		result = node_found[0].setSetup(setup)
 		if setup.terminal:
-			node_to_changed = SetupWeigher(**result)
+			node_to_changed = SetupWeigherDTO(**result)
 			deleteNode(node_to_changed.node)
 			addNode(node_to_changed)
 		else:
