@@ -1,13 +1,13 @@
-from modules.md_weigher_utils.types import Realtime, Diagnostic, Weight, DataInExecution
-from modules.md_weigher_utils.utils import terminalsClasses
+from modules.md_weigher.types import Realtime, Diagnostic, Weight, DataInExecution
+from modules.md_weigher.utils import terminalsClasses
 from typing import Callable, Union
-from modules.md_weigher_utils.dto import SetupWeigherDTO
+from modules.md_weigher.dto import SetupWeigherDTO
 import lib.lb_log as lb_log
-from modules.md_weigher_utils.utils import checkCallbackFormat, callCallback
+from modules.md_weigher.utils import checkCallbackFormat, callCallback
 import re
-from modules.md_weigher_utils.terminals.basic_terminal import BasicTerminal
+from modules.md_weigher.setup_terminal import Terminal
 
-class Dgt1(BasicTerminal):
+class Dgt1(Terminal):
 	def command(self):
 		global config
 		self.modope = self.modope_to_execute # modope assume il valore di modope_to_execute, che nel frattempo può aver cambiato valore tramite le funzioni richiambili dall'esterno

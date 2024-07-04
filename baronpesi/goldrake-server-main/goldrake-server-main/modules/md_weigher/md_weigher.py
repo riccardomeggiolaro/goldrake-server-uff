@@ -5,7 +5,7 @@
 # = Last rev....: 0.0002					   =
 # ==============================================================
 
-from modules.md_weigher_utils.utils import connection, weighers, time_between_actions
+from modules.md_weigher.utils import connection, weighers, time_between_actions
 
 # ==== LIBRERIE DA IMPORTARE ===================================
 import inspect
@@ -20,12 +20,12 @@ import copy
 from pydantic import BaseModel, validator
 import re
 from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher_utils.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
-from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
-from modules.md_weigher_utils.utils import callCallback, checkCallbackFormat
-from modules.md_weigher_utils.terminals.dgt1 import Dgt1
+from modules.md_weigher.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
+from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
+from modules.md_weigher.utils import callCallback, checkCallbackFormat
+from modules.md_weigher.terminals.dgt1 import Dgt1
 from lib.lb_system import ConfigConnection
-from modules.md_weigher_utils.utils import terminalsClasses
+from modules.md_weigher.utils import terminalsClasses
 # ==============================================================
 
 # ==== INIT ====================================================
