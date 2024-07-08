@@ -40,7 +40,18 @@ def mainprg():
 	while lb_config.g_enabled:
 		for weigher in weighers:
 			time_start = time.time()
-			weigher.main()
+			status = weigher.main()
+			if status in [305, 301]:
+				reconnect, message = connection.connection.try_connection()
+				if reconnect:
+					connection.connection.flush()
+					weigher.diagnostic.status = 307
+				else:
+					connection.connection.flush()
+					connection.connection.close()
+					weigher.diagnostic.status = 301
+				lb_log.info(reconnect)
+			lb_log.info(status)
 			time_end = time.time()
 			time_execute = time_end - time_start
 			timeout = max(0, time_between_actions - time_execute)

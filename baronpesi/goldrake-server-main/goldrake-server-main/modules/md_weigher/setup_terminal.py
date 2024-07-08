@@ -1,6 +1,8 @@
 from modules.md_weigher.types import Realtime, Diagnostic, Weight, DataInExecution
 from modules.md_weigher.dto import SetupWeigherDTO
 from modules.md_weigher.utils import connection, checkCallbackFormat
+from lib.lb_system import Connection
+import lib.lb_log as lb_log
 from pydantic import BaseModel
 from typing import Optional, Callable, Union
 

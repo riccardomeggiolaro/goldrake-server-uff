@@ -4,19 +4,15 @@
 
 # ==== LIBRERIE DA IMPORTARE ===================================
 import os
-import json
-import time
 import lib.lb_log as lb_log
-from dateutil import tz
 import platform
-import psutil
 import subprocess
 import serial.tools.list_ports
 from pydantic import BaseModel, validator
-from abc import ABC, abstractmethod
 from serial import SerialException
 import socket
 from typing import Optional, Union
+import select
 # ==============================================================
 
 class Connection(BaseModel):
@@ -60,13 +56,13 @@ class SerialPort(Connection):
 	@validator('serial_port_name', pre=True, always=True)
 	def check_format(cls, v):
 		if v is not None:
-			result, message = lb_system.exist_serial_port(v)
+			result, message = exist_serial_port(v)
 			if result is False:
 				raise ValueError(message)
-			result, message = lb_system.enable_serial_port(v)
+			result, message = enable_serial_port(v)
 			if result is False:
 				raise ValueError(message)
-			result, message = lb_system.serial_port_not_just_in_use(v)
+			result, message = serial_port_not_just_in_use(v)
 			if result is False:
 				raise ValueError(message)
 		return v
@@ -222,10 +218,16 @@ class Tcp(Connection):
 
 	def is_open(self):
 		try:
-			if isinstance(self.conn, socket.socket) and self.conn.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR) == 0:
-				return True
-			return False
-		except socket.error:
+			if isinstance(self.conn, socket.socket):
+				# Use select to check if the socket is ready for reading
+				readable, _, _ = select.select([self.conn], [], [], 0)
+				if readable:
+					# If the socket is ready for reading, attempt to read with MSG_PEEK
+					data = self.conn.recv(1, socket.MSG_PEEK)
+					if data == b'':
+						return False
+			return True
+		except (socket.error, OSError):
 			return False
 
 	def try_connection(self):
@@ -270,8 +272,13 @@ class Tcp(Connection):
 		status = False
 		error_message = None
 		try:
-			self.conn.close()
-			status = True
+			if isinstance(self.conn, socket.socket):
+				# Shutdown the socket to indicate no more data will be sent or received
+				self.conn.shutdown(socket.SHUT_RDWR)
+				# Close the socket to free up the resources
+				self.conn.close()
+				status = True
+			status = False
 		except Exception as e:
 			status = False
 			error_message = e

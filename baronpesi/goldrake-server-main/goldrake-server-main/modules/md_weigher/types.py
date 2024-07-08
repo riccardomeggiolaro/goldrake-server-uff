@@ -1,6 +1,4 @@
 from pydantic import BaseModel
-from modules.md_weigher.dto import SetupWeigherDTO
-from modules.md_weigher.utils import connection
 from typing import Optional, Union
 
 class DataInExecution(BaseModel):

@@ -1,9 +1,6 @@
-from modules.md_weigher.types import Realtime, Diagnostic, Weight, DataInExecution
 from modules.md_weigher.utils import terminalsClasses
-from typing import Callable, Union
-from modules.md_weigher.dto import SetupWeigherDTO
 import lib.lb_log as lb_log
-from modules.md_weigher.utils import checkCallbackFormat, callCallback
+from modules.md_weigher.utils import callCallback
 import re
 from modules.md_weigher.setup_terminal import Terminal
 
@@ -108,7 +105,6 @@ class Dgt1(Terminal):
 		}
 
 	def main(self):
-		lb_log.info(self.diagnostic.status)
 		if self.diagnostic.status in [200, 307]:
 			self.command() # eseguo la funzione command() che si occupa di scrivere il comando sulla pesa in base al valore del modope_to_execute nel momento in cui ho chiamato la funzione
 			response = self.read()
@@ -242,6 +238,7 @@ class Dgt1(Terminal):
 		# se lo stato della pesa è 301 e initializated è uguale a True prova a ristabilire una connessione con la pesa
 		else:
 			pass
+		return self.diagnostic.status
 			
 terminalsClasses.append({
 	"terminal": "dgt1",
