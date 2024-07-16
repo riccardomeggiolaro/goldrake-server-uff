@@ -1,7 +1,7 @@
 from pydantic import BaseModel, validator
 from typing import Optional, Union, List
 from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher_utils.utils import terminalsClasses, weighers
+from modules.md_weigher.utils import terminalsClasses, weighers
 
 class ChangeSetupWeigherDTO(BaseModel):
 	max_weight: Optional[int] = None

@@ -5,7 +5,7 @@
 # = Last rev....: 0.0002					   =
 # ==============================================================
 
-from modules.md_weigher_utils.utils import connection, weighers, time_between_actions
+from modules.md_weigher.utils import connection, weighers, time_between_actions
 
 # ==== LIBRERIE DA IMPORTARE ===================================
 import inspect
@@ -20,14 +20,12 @@ import copy
 from pydantic import BaseModel, validator
 import re
 from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher_utils.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
-from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
-from modules.md_weigher_utils.utils import callCallback, checkCallbackFormat
-from modules.md_weigher_utils.config_weighers import ConfigWeigher
-from modules.md_weigher_utils.terminals.dgt1 import Dgt1
+from modules.md_weigher.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
+from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
+from modules.md_weigher.utils import callCallback, checkCallbackFormat
+from modules.md_weigher.terminals.dgt1 import Dgt1
 from lib.lb_system import ConfigConnection
-from modules.md_weigher_utils.setup_weigher import SetupWeigher
-from modules.md_weigher_utils.utils import terminalsClasses
+from modules.md_weigher.utils import terminalsClasses
 # ==============================================================
 
 # ==== INIT ====================================================
@@ -42,11 +40,27 @@ def mainprg():
 	while lb_config.g_enabled:
 		for weigher in weighers:
 			time_start = time.time()
-			weigher.main()
+			status, command, response, error = weigher.main()
 			time_end = time.time()
 			time_execute = time_end - time_start
 			timeout = max(0, time_between_actions - time_execute)
 			time.sleep(timeout)
+			lb_log.info(f"Status: {status}, Command: {command}, Response; {response}, Error: {error}")
+			if weigher.diagnostic.status == 301:
+				connection.connection.close()
+				status, error_message = connection.connection.try_connection()
+				if status:
+					for w in weighers:
+						time_start = time.time()
+						w.initialize()
+						time_end = time.time()
+						time_execute = time_end - time_start
+						timeout = max(0, time_between_actions - time_execute)
+						time.sleep(timeout)
+				else:
+					for w in weighers:
+						w.diagnostic.status = 301
+					connection.connection.close()
 # ==============================================================
 
 # ==== START ===================================================
@@ -140,7 +154,7 @@ def setNode(node: Union[str, None], setup: ChangeSetupWeigherDTO = {}):
 	if len(node_found) is not 0:
 		result = node_found[0].setSetup(setup)
 		if setup.terminal:
-			node_to_changed = SetupWeigher(**result)
+			node_to_changed = SetupWeigherDTO(**result)
 			deleteNode(node_to_changed.node)
 			addNode(node_to_changed)
 		else:

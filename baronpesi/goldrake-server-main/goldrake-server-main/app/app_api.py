@@ -8,20 +8,6 @@
 # 0.0001 : Creazione della applicazione
 # ==============================================================
 
-# ==== Dati necessari nel file .json dentro setup per la corretta funzione dell'applicazione
-		# "main_application": {
-		#	 "redis_config": { # configurazione server redis
-		#		 "host": "localhost",
-		#		 "port": 6379,
-		#		 "db": 0,
-		#		 "back_channel": "back", # canale dove scrive il backend e ascolta il frontend
-		#		 "front_channel": "front", # canale dove scrive il frontend e ascolta il backend
-		#		 "machine_channel": "machine"
-		#	 },
-		#	 "weight_after_scanned_card_code": false # imposta se la pesata deve essere eseguita in automatico dopo la lettura del codice tessera
-		# }
-# ==============================================================
-
 # ==== LIBRERIE DA IMPORTARE ===================================
 import inspect
 __frame = inspect.currentframe()
@@ -47,12 +33,12 @@ import copy
 import serial
 import serial.tools.list_ports as ports
 from pydantic import ValidationError
-import modules.md_weigher as weigher
+import modules.md_weigher.md_weigher as weigher
 # import modules.md_rfid as rfid
-from modules.md_weigher import DataInExecution
+from modules.md_weigher.types import DataInExecution
 import lib.lb_database as lb_database
 from datetime import datetime
-from modules.md_weigher_utils.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
+from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
 from lib.lb_system import SerialPort, Tcp
 # ==============================================================
 
@@ -482,7 +468,7 @@ def init():
 	)
 
 	configuration = ConfigurationDTO(**lb_config.g_config["app_api"]["weigher"])
-	result = weigher.initialize(configuration=configuration)
+	weigher.initialize(configuration=configuration)
 	weigher.setAction(
 			cb_realtime=Callback_Realtime, 
 			cb_diagnostic=Callback_Diagnostic, 

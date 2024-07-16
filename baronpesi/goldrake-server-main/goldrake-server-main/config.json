@@ -14,7 +14,7 @@
         "weigher": {
             "connection": {
                 "ip": "192.168.0.229",
-                "port": 4101,
+                "port": 4001,
                 "timeout": 1.0
             },
             "nodes": [
