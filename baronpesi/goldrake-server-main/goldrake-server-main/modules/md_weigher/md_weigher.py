@@ -40,17 +40,23 @@ def mainprg():
 	while lb_config.g_enabled:
 		for weigher in weighers:
 			time_start = time.time()
-			status, response, error = weigher.main()
+			status, command, response, error = weigher.main()
 			time_end = time.time()
 			time_execute = time_end - time_start
 			timeout = max(0, time_between_actions - time_execute)
 			time.sleep(timeout)
-			lb_log.info(f"Status: {status}, Response; {response}, Error: {error}")
+			lb_log.info(f"Status: {status}, Command: {command}, Response; {response}, Error: {error}")
 			if weigher.diagnostic.status == 301:
 				connection.connection.close()
 				status, error_message = connection.connection.try_connection()
 				if status:
-					weigher.diagnostic.status = 200
+					for w in weighers:
+						time_start = time.time()
+						w.initialize()
+						time_end = time.time()
+						time_execute = time_end - time_start
+						timeout = max(0, time_between_actions - time_execute)
+						time.sleep(timeout)
 				else:
 					for w in weighers:
 						w.diagnostic.status = 301

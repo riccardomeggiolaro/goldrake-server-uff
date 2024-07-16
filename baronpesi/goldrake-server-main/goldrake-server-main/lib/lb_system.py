@@ -237,8 +237,8 @@ class Tcp(Connection):
 		try:
 			self.conn = None
 			self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.conn.setblocking(False)
 			self.conn.settimeout(self.timeout)
-			self.conn.setblocking(True)
 			self.conn.connect((self.ip, self.port))
 		except socket.error as e:
 			status = False

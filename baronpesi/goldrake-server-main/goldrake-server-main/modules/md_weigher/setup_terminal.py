@@ -177,7 +177,7 @@ class __SetupWeigher(__SetupWeigherConnection):
 
 	# setta il modope_to_execute
 	def setModope(self, mod: str, presettare: int = 0, data_assigned: Union[DataInExecution, int] = None):
-		commands = ["VER", "SN", "OK"]
+		commands = ["VER", "SN", ""]
 		direct_commands = ["TARE", "ZERO", "RESETTARE", "PRESETTARE", "WEIGHING"]
 		if mod in commands:
 			self.modope_to_execute = mod

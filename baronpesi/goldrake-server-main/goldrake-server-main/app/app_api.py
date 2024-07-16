@@ -468,7 +468,7 @@ def init():
 	)
 
 	configuration = ConfigurationDTO(**lb_config.g_config["app_api"]["weigher"])
-	result = weigher.initialize(configuration=configuration)
+	weigher.initialize(configuration=configuration)
 	weigher.setAction(
 			cb_realtime=Callback_Realtime, 
 			cb_diagnostic=Callback_Diagnostic, 

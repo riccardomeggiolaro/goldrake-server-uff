@@ -17,7 +17,7 @@ class Dgt1(Terminal):
 			self.valore_alterno = self.valore_alterno + 1 # incremento di 1 il valore alterno
 		elif self.modope == "REALTIME":
 			self.write("RALL")
-		elif self.modope == "DINT2710":
+		elif self.modope == "":
 			self.write("DINT2710")
 		elif self.modope == "WEIGHING":
 			self.write("PID")
@@ -42,9 +42,6 @@ class Dgt1(Terminal):
 		elif self.modope == "SN":
 			self.write("SN")
 			self.modope_to_execute = "" # setto modope_to_execute a stringa vuota per evitare che la stessa funzione venga eseguita anche nel prossimo ciclo
-		elif self.modope == "OK":
-			self.write("DINT2710") # scrive un comando sulla pesa
-			self.modope_to_execute = "OK"
 		return self.modope
 
 	def initialize(self):
@@ -79,7 +76,7 @@ class Dgt1(Terminal):
 			# controllo se ho ottenuto firmware, nome modello e numero conn
 			if self.diagnostic.firmware and self.diagnostic.model_name and self.diagnostic.serial_number:
 				self.diagnostic.status = 200 # imposto status della pesa a 200 per indicare che è accesa
-				self.setModope("OK")
+				self.setModope("")
 				lb_log.info("------------------------------------------------------")
 				lb_log.info("INITIALIZATION")
 				lb_log.info("INFOSTART: " + "Accensione con successo")
@@ -94,7 +91,6 @@ class Dgt1(Terminal):
 		except ConnectionError as e:
 			self.diagnostic.status = 301
 			lb_log.info(e)
-		lb_log.info(self.diagnostic.status)
 		return {
 			"max_weight": self.max_weight,
 			"min_weight": self.min_weight,
@@ -128,11 +124,8 @@ class Dgt1(Terminal):
 						self.pesa_real_time.unite_measure = split_response[2][-2:]
 					# Se formato stringa del peso in tempo reale non corretto, manda a video errore
 					else:
-						pass
-						# self.diagnostic.status = 305
-						# lb_log.error(f"Received string format does not comply with the REALTIME function: {response}")
-						# lb_log.error(length_split_response)
-						# lb_log.error(length_response)
+						self.diagnostic.status = 305
+						lb_log.error(f"Received string format does not comply with the REALTIME function: {response}")
 					self.diagnostic.vl = ""
 					self.diagnostic.rz = ""
 					callCallback(self.callback_realtime) # chiamo callback
@@ -148,8 +141,8 @@ class Dgt1(Terminal):
 					# Se formato stringa della diagnostica non corretto, manda a video errore
 					else:
 						pass
-						# self.diagnostic.status = 305
-						# lb_log.error(f"Received string format does not comply with the DIAGNOSTICS function: {response}")
+						self.diagnostic.status = 305
+						lb_log.error(f"Received string format does not comply with the DIAGNOSTICS function: {response}")
 					self.pesa_real_time.status = "D"
 					self.pesa_real_time.type = ""
 					self.pesa_real_time.net_weight = ""
@@ -173,9 +166,8 @@ class Dgt1(Terminal):
 						self.weight.weight_executed.status = split_response[0]
 					# Se formato stringa pesata pid non corretto, manda a video errore e setta oggetto a None
 					else:
-						pass
-						# self.diagnostic.status = 305
-						# lb_log.error(f"Received string format does not comply with the WEIGHING function: {response}")
+						self.diagnostic.status = 305
+						lb_log.error(f"Received string format does not comply with the WEIGHING function: {response}")
 					callCallback(self.callback_weighing) # chiamo callback
 					self.weight.weight_executed.net_weight = ""
 					self.weight.weight_executed.gross_weight = ""
@@ -193,8 +185,8 @@ class Dgt1(Terminal):
 					# Se formato stringa non valido setto ok_value a None
 					else:
 						pass
-						# self.diagnostic.status = 305
-						# lb_log.error(f"Received string format does not comply with the function {self.modope}: {response}")			
+						self.diagnostic.status = 305
+						lb_log.error(f"Received string format does not comply with the function {self.modope}: {response}")			
 					if self.modope == "TARE":
 						self.pesa_real_time.status = "T"
 					if self.modope == "PRESETTARE":
@@ -204,12 +196,12 @@ class Dgt1(Terminal):
 					callCallback(self.callback_tare_ptare_zero) # chiamo callback
 					self.ok_value = "" # Risetto ok_value a stringa vuota
 				######### Se non è arrivata nessuna risposta ################################
-				elif self.modope == "OK":
+				elif self.modope == "":
 					if length_response == 2 and response == "OK":
 						pass
 				else:
-					pass
-					# self.diagnostic.status = 305
+					self.diagnostic.status = 305
+					lb_log.error(f"Received string format does not comply with the VOID STRING function: {response}")
 			if status is False:
 				self.diagnostic.vl = ""
 				self.diagnostic.rz = ""
@@ -244,7 +236,7 @@ class Dgt1(Terminal):
 		# se lo stato della pesa è 301 e initializated è uguale a True prova a ristabilire una connessione con la pesa
 		else:
 			pass
-		return self.diagnostic.status, response, error
+		return self.diagnostic.status, self.modope, response, error
 			
 terminalsClasses.append({
 	"terminal": "dgt1",
