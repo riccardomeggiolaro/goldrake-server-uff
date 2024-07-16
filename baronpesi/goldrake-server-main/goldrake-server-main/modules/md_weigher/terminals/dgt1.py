@@ -6,7 +6,6 @@ from modules.md_weigher.setup_terminal import Terminal
 
 class Dgt1(Terminal):
 	def command(self):
-		global config
 		self.modope = self.modope_to_execute # modope assume il valore di modope_to_execute, che nel frattempo può aver cambiato valore tramite le funzioni richiambili dall'esterno
 		# in base al valore del modope scrive un comando specifico nella conn
 		if self.modope == "DIAGNOSTICS":
@@ -52,7 +51,7 @@ class Dgt1(Terminal):
 		try:
 			self.setModope("VER")
 			self.command()
-			response = self.read()
+			status, response, error = self.read()
 			if response: # se legge la risposta e la lunghezza della stringa è di 12 la splitta per ogni virgola
 				# lb_log.info(response)
 				values = response.split(",")
@@ -70,7 +69,7 @@ class Dgt1(Terminal):
 			# ottenere numero conn
 			self.setModope("SN")
 			self.command()
-			response = self.read()
+			status, response, error = self.read()
 			if response: # se legge la risposta e la lunghezza della stringa è di 12 la splitta per ogni virgola
 				value = response.replace("SN: ", "")
 				self.diagnostic.serial_number = value
@@ -95,6 +94,7 @@ class Dgt1(Terminal):
 		except ConnectionError as e:
 			self.diagnostic.status = 301
 			lb_log.info(e)
+		lb_log.info(self.diagnostic.status)
 		return {
 			"max_weight": self.max_weight,
 			"min_weight": self.min_weight,
@@ -105,10 +105,11 @@ class Dgt1(Terminal):
 		}
 
 	def main(self):
+		status, response, error = False, None, None
 		if self.diagnostic.status in [200, 307]:
 			self.command() # eseguo la funzione command() che si occupa di scrivere il comando sulla pesa in base al valore del modope_to_execute nel momento in cui ho chiamato la funzione
-			response = self.read()
-			if response: # se legge la risposta e la lunghezza della stringa è di 12 la splitta per ogni virgola
+			status, response, error = self.read()
+			if status: # se legge la risposta e la lunghezza della stringa è di 12 la splitta per ogni virgola
 				split_response = response.split(",") # creo un array di sotto stringhe splittando la risposta per ogni virgola
 				length_split_response = len(split_response) # ottengo la lunghezza dell'array delle sotto stringhe
 				length_response = len(response) # ottengo la lunghezza della stringa della risposta
@@ -128,6 +129,7 @@ class Dgt1(Terminal):
 					# Se formato stringa del peso in tempo reale non corretto, manda a video errore
 					else:
 						pass
+						# self.diagnostic.status = 305
 						# lb_log.error(f"Received string format does not comply with the REALTIME function: {response}")
 						# lb_log.error(length_split_response)
 						# lb_log.error(length_response)
@@ -146,6 +148,7 @@ class Dgt1(Terminal):
 					# Se formato stringa della diagnostica non corretto, manda a video errore
 					else:
 						pass
+						# self.diagnostic.status = 305
 						# lb_log.error(f"Received string format does not comply with the DIAGNOSTICS function: {response}")
 					self.pesa_real_time.status = "D"
 					self.pesa_real_time.type = ""
@@ -171,6 +174,7 @@ class Dgt1(Terminal):
 					# Se formato stringa pesata pid non corretto, manda a video errore e setta oggetto a None
 					else:
 						pass
+						# self.diagnostic.status = 305
 						# lb_log.error(f"Received string format does not comply with the WEIGHING function: {response}")
 					callCallback(self.callback_weighing) # chiamo callback
 					self.weight.weight_executed.net_weight = ""
@@ -189,6 +193,7 @@ class Dgt1(Terminal):
 					# Se formato stringa non valido setto ok_value a None
 					else:
 						pass
+						# self.diagnostic.status = 305
 						# lb_log.error(f"Received string format does not comply with the function {self.modope}: {response}")			
 					if self.modope == "TARE":
 						self.pesa_real_time.status = "T"
@@ -201,10 +206,11 @@ class Dgt1(Terminal):
 				######### Se non è arrivata nessuna risposta ################################
 				elif self.modope == "OK":
 					if length_response == 2 and response == "OK":
-						lb_log.info(response)
+						pass
 				else:
-					self.diagnostic.status = 305
-			if not response:
+					pass
+					# self.diagnostic.status = 305
+			if status is False:
 				self.diagnostic.vl = ""
 				self.diagnostic.rz = ""
 				self.pesa_real_time.status = ""
@@ -222,7 +228,7 @@ class Dgt1(Terminal):
 				self.weight.weight_executed.status = ""
 				self.weight.data_assigned = None
 				self.ok_value = ""
-				self.diagnostic.status = 305
+				self.diagnostic.status = 301
 				if self.modope == "WEIGHING":
 					self.weight.status = self.diagnostic.status
 					callCallback(self.callback_weighing)
@@ -238,7 +244,7 @@ class Dgt1(Terminal):
 		# se lo stato della pesa è 301 e initializated è uguale a True prova a ristabilire una connessione con la pesa
 		else:
 			pass
-		return self.diagnostic.status
+		return self.diagnostic.status, response, error
 			
 terminalsClasses.append({
 	"terminal": "dgt1",

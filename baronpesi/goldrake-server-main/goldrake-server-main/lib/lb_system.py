@@ -13,6 +13,7 @@ from serial import SerialException
 import socket
 from typing import Optional, Union
 import select
+import psutil
 # ==============================================================
 
 class Connection(BaseModel):
@@ -234,17 +235,15 @@ class Tcp(Connection):
 		status = True
 		error_message = None
 		try:
-			if isinstance(self.conn, socket.socket):
-				self.conn.close()
+			self.conn = None
 			self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			self.conn.setblocking(False)
 			self.conn.settimeout(self.timeout)
-			# establish connection with server
+			self.conn.setblocking(True)
 			self.conn.connect((self.ip, self.port))
-		except Exception as e:
+		except socket.error as e:
 			status = False
-			error_message = e
-			lb_log.info(e)
+			error_message = f"Errore nella riconnessione {e}"
+			lb_log.info(f"{error_message}")
 		return status, error_message
 
 	def flush(self):
@@ -272,12 +271,11 @@ class Tcp(Connection):
 		status = False
 		error_message = None
 		try:
-			if isinstance(self.conn, socket.socket):
-				# Shutdown the socket to indicate no more data will be sent or received
-				self.conn.shutdown(socket.SHUT_RDWR)
-				# Close the socket to free up the resources
-				self.conn.close()
-				status = True
+			# Shutdown the socket to indicate no more data will be sent or received
+			self.conn.shutdown(socket.SHUT_RDWR)
+			# Close the socket to free up the resources
+			self.conn.close()
+			status = True
 			status = False
 		except Exception as e:
 			status = False
@@ -296,21 +294,22 @@ class Tcp(Connection):
 			error_message = e
 			lb_log.error(f"Socket error on write: {error_message}")
 		return status, error_message
-
+	
 	def read(self):
 		status = False
 		message = None
 		error_message = None
 		try:
-			if self.is_open():
-				message = self.conn.recv(1024)
-				status = True
+			message = self.conn.recv(1024)
+			status = True
 		except BlockingIOError as e:
 			status = False
 			error_message = e
+			lb_log.info(f"Error on read: {e}")
 		except socket.error as e:
 			status = False
 			error_message = e
+			lb_log.info(f"Error on read: {e}")
 			# lb_log.error(f"Socket error on write: {error_message}")
 		return status, message, error_message
 

@@ -16,22 +16,22 @@ class __SetupWeigherConnection(BaseModel):
 	terminal: str
 
 	def try_connection(self):
-    		return connection.connection.try_connection()
+		return connection.connection.try_connection()
 	
 	def write(self, cmd):
 		try:
 			if self.node and self.node is not None:
 				cmd = self.node + cmd
 			connection.connection.write(cmd=cmd)
-		except AttributeError:
-			pass
+		except Exception as e:
+			lb_log.info(f"Write: {e}")
 
 	def read(self):
 		status, read, error = connection.connection.read()
 		if status:
 			decode = read.decode("utf-8", errors="ignore").replace(self.node, "", 1).replace("\r\n", "")
 			read = decode
-		return read
+		return status, read, error
 
 	def decode_read(self, read):
 		decode = read
