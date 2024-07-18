@@ -1,6 +1,6 @@
-from modules.md_weigher.utils import terminalsClasses
+from modules.md_weigher.globals import terminalsClasses
 import lib.lb_log as lb_log
-from modules.md_weigher.utils import callCallback
+from lib.lb_utils import callCallback
 import re
 from modules.md_weigher.setup_terminal import Terminal
 

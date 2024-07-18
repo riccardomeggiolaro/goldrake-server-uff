@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from lib.lb_utils import CustomBaseModel
 from typing import Optional, Union
+from pydantic import BaseModel
 
 class DataInExecution(BaseModel):
 	customer: Optional[str] = None
@@ -20,7 +21,7 @@ class Realtime(BaseModel):
 	tare: str
 	unite_measure: str
 	
-class Diagnostic(BaseModel):
+class Diagnostic(CustomBaseModel):
 	status: int
 	firmware: str
 	model_name: str

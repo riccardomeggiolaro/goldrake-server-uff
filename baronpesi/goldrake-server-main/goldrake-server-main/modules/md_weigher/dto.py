@@ -1,9 +1,10 @@
-from pydantic import BaseModel, validator
+from pydantic import validator
 from typing import Optional, Union, List
 from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher.utils import terminalsClasses, weighers
+from modules.md_weigher.globals import terminalsClasses, weighers
+from lib.lb_utils import CustomBaseModel
 
-class ChangeSetupWeigherDTO(BaseModel):
+class ChangeSetupWeigherDTO(CustomBaseModel):
 	max_weight: Optional[int] = None
 	min_weight: Optional[int] = None
 	division: Optional[int] = None
@@ -28,11 +29,11 @@ class ChangeSetupWeigherDTO(BaseModel):
 	@validator('terminal', pre=True, always=True)
 	def check_terminal(cls, v, values, **kwargs):
 		for terminal in terminalsClasses:
-			if v == terminal["terminal"] or v == None:
+			if v == terminal["terminal"] or v is None:
 				return v
 		raise ValueError("Terminal don't exist")
 
-class SetupWeigherDTO(BaseModel):
+class SetupWeigherDTO(CustomBaseModel):
 	max_weight: int
 	min_weight: int
 	division: int
@@ -61,7 +62,7 @@ class SetupWeigherDTO(BaseModel):
 				return v
 		raise ValueError("Terminal don't exist")
  
-class ConfigurationDTO(BaseModel):
+class ConfigurationDTO(CustomBaseModel):
 	nodes: List[SetupWeigherDTO] = []
 	connection: Union[SerialPort, Tcp, Connection, None] = None
 	time_between_actions: Union[int, float]

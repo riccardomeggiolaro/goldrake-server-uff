@@ -1,8 +1,9 @@
 from modules.md_weigher.types import Realtime, Diagnostic, Weight, DataInExecution
 from modules.md_weigher.dto import SetupWeigherDTO
-from modules.md_weigher.utils import connection, checkCallbackFormat
+from modules.md_weigher.globals import connection
 from lib.lb_system import Connection
 import lib.lb_log as lb_log
+from lib.lb_utils import checkCallbackFormat
 from pydantic import BaseModel
 from typing import Optional, Callable, Union
 
@@ -35,16 +36,10 @@ class __SetupWeigherConnection(BaseModel):
 
 	def decode_read(self, read):
 		decode = read
-		try:
-			decode = read.decode('utf-8', errors='ignore')
-		except:
-			pass
-		try:
-			decode = decode.strip()
-			if self.node and self.node is not None:
-				decode = decode.replace(self.node, "", 1)
-		except:
-			pass
+		decode = read.decode('utf-8', errors='ignore')
+		decode = decode.strip()
+		if self.node and self.node is not None:
+			decode = decode.replace(self.node, "", 1)
 		return decode
 
 	def flush(self):

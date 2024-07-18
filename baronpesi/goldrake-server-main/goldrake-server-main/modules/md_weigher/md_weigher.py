@@ -5,27 +5,21 @@
 # = Last rev....: 0.0002					   =
 # ==============================================================
 
-from modules.md_weigher.utils import connection, weighers, time_between_actions
+from modules.md_weigher.globals import connection, weighers, time_between_actions
 
 # ==== LIBRERIE DA IMPORTARE ===================================
 import inspect
 __frame = inspect.currentframe()
 namefile = inspect.getfile(__frame).split("/")[-1].replace(".py", "")
-import lib.lb_log as lb_log
-import lib.lb_system as lb_system
-import lib.lb_config as lb_config
-from typing import Callable, Union, Optional, List
-import time
-import copy
-from pydantic import BaseModel, validator
-import re
-from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher.types import DataInExecution, Realtime, Diagnostic, WeightExecuted, Weight, Diagnostic
-from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
-from modules.md_weigher.utils import callCallback, checkCallbackFormat
-from modules.md_weigher.terminals.dgt1 import Dgt1
-from lib.lb_system import ConfigConnection
-from modules.md_weigher.utils import terminalsClasses
+import lib.lb_log as lb_log  # noqa: E402
+import lib.lb_config as lb_config  # noqa: E402
+from typing import Callable, Union  # noqa: E402
+import time  # noqa: E402
+from lib.lb_system import SerialPort, Tcp  # noqa: E402
+from modules.md_weigher.types import DataInExecution  # noqa: E402
+from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO  # noqa: E402
+from modules.md_weigher.terminals.dgt1 import Dgt1  # noqa: E402
+from modules.md_weigher.globals import terminalsClasses  # noqa: E402
 # ==============================================================
 
 # ==== INIT ====================================================
@@ -151,7 +145,7 @@ def addNode(node: SetupWeigherDTO):
 def setNode(node: Union[str, None], setup: ChangeSetupWeigherDTO = {}):
 	node_found = [n for n in weighers if n.node == node]
 	result = None
-	if len(node_found) is not 0:
+	if len(node_found) != 0:
 		result = node_found[0].setSetup(setup)
 		if setup.terminal:
 			node_to_changed = SetupWeigherDTO(**result)
@@ -164,7 +158,7 @@ def setNode(node: Union[str, None], setup: ChangeSetupWeigherDTO = {}):
 def deleteNode(node: Union[str, None]):
 	node_found = [n for n in weighers if n.node == node]
 	response = False
-	if len(node_found) is not 0:
+	if len(node_found) != 0:
 		weighers.remove(node_found[0])
 		response = True
 	return response
@@ -230,7 +224,7 @@ def deleteDataInExecution(node: Union[str, None]):
 def setModope(node: Union[str, None], modope, presettare=0, data_assigned = None):
 	node_found = [n for n in weighers if n.node == node]
 	status, status_modope, command_execute = False, None, False
-	if len(node_found) is not 0:
+	if len(node_found) != 0:
 		status = True
 		status_modope = node_found[0].setModope(mod=modope, presettare=presettare, data_assigned=data_assigned)
 		command_execute = status_modope == 100

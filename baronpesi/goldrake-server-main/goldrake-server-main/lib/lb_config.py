@@ -54,9 +54,9 @@ def readconfig():
 				# Carica il contenuto JSON nelle variabili globali g_config.
 				g_config = json.loads(data)
 				g_name = g_config["name"]
-		except:
+		except Exception as e:
 			# Registra un messaggio di errore se si verifica un problema durante la lettura del file di configurazione principale.
-			lb_log.error("error loading : config.json")
+			lb_log.error(f"error loading : config.json, Error: {e}")
 			# Imposta il flag per indicare che è necessario provare a caricare una copia di backup.
 			xloadbackup = True
 	else:
@@ -80,9 +80,9 @@ def readconfig():
 					data = config.read()
 					# Carica il contenuto JSON nelle variabili globali g_config.
 					g_config = json.loads(data)
-			except:
+			except Exception as e:
 				# Registra un messaggio di errore se si verifica un problema durante la lettura del file di backup della configurazione.
-				lb_log.error("error loading : config.backup")
+				lb_log.error(f"error loading : config.backup, Error: {e}")
 			else:
 				# Se il backup è stato caricato correttamente, registra un messaggio di informazione e salva la configurazione.
 				lb_log.info("backup restored")

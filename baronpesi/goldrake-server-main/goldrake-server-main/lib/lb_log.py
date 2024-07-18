@@ -14,7 +14,7 @@ from datetime import datetime
 # Funzione per stampare messaggi di debug con informazioni aggiuntive.
 # Questa funzione accetta un messaggio come input e stampa il timestamp corrente, il modulo in cui è chiamata e il messaggio di debug.
 def debug(msg):
-    defa_logfile = lb_config.g_defalogfile  # File di log di default
+    # defa_logfile = lb_config.g_defalogfile  # File di log di default
     now = datetime.now()  # Data e ora corrente
     module = os.path.splitext(os.path.basename(inspect.stack()[1].filename))[0].lower()  # Ottiene il nome del modulo corrente
     if len(module) > 10:
@@ -30,7 +30,7 @@ def debug(msg):
 # Funzione per stampare messaggi informativi con informazioni aggiuntive.
 # Questa funzione accetta un messaggio come input e stampa il timestamp corrente, il modulo in cui è chiamata e il messaggio informativo.
 def info(msg):
-    defa_logfile = lb_config.g_defalogfile  # File di log di default
+    # defa_logfile = lb_config.g_defalogfile  # File di log di default
     now = datetime.now()  # Data e ora corrente
     module = os.path.splitext(os.path.basename(inspect.stack()[1].filename))[0].lower()  # Ottiene il nome del modulo corrente
     if type(msg) is not str:
@@ -79,7 +79,7 @@ def warning(msg):
 # Funzione per stampare messaggi di errore con informazioni aggiuntive.
 # Questa funzione accetta un messaggio come input e stampa il timestamp corrente, il modulo in cui è chiamata e il messaggio di errore.
 def error(msg):
-    defa_logfile = lb_config.g_defalogfile  # File di log di default
+    # defa_logfile = lb_config.g_defalogfile  # File di log di default
     now = datetime.now()  # Data e ora corrente
     module = os.path.splitext(os.path.basename(inspect.stack()[1].filename))[0].lower()  # Ottiene il nome del modulo corrente
     if type(msg) is not str:
