@@ -11,15 +11,15 @@ from modules.md_weigher.globals import connection, weighers, time_between_action
 import inspect
 __frame = inspect.currentframe()
 namefile = inspect.getfile(__frame).split("/")[-1].replace(".py", "")
-import lib.lb_log as lb_log
-import lib.lb_config as lb_config
-from typing import Callable, Union
-import time
-from lib.lb_system import SerialPort, Tcp
-from modules.md_weigher.types import DataInExecution
-from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
-from modules.md_weigher.terminals.dgt1 import Dgt1
-from modules.md_weigher.globals import terminalsClasses
+import lib.lb_log as lb_log  # noqa: E402
+import lib.lb_config as lb_config  # noqa: E402
+from typing import Callable, Union  # noqa: E402
+import time  # noqa: E402
+from lib.lb_system import SerialPort, Tcp  # noqa: E402
+from modules.md_weigher.types import DataInExecution  # noqa: E402
+from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO  # noqa: E402
+from modules.md_weigher.terminals.dgt1 import Dgt1  # noqa: E402
+from modules.md_weigher.globals import terminalsClasses  # noqa: E402
 # ==============================================================
 
 # ==== INIT ====================================================

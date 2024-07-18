@@ -73,7 +73,7 @@ class ConnectionManager:
 		for connection in self.active_connections:
 			try:
 				await connection.send_json(message)
-			except:
+			except Exception:
 				#print("client down")
 				self.disconnect(connection)
 # ==============================================================
