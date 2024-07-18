@@ -1,7 +1,8 @@
 from lib.lb_utils import CustomBaseModel
 from typing import Optional, Union
+from pydantic import BaseModel
 
-class DataInExecution(CustomBaseModel):
+class DataInExecution(BaseModel):
 	customer: Optional[str] = None
 	supplier: Optional[str] = None
 	plate: Optional[str] = None
@@ -12,7 +13,7 @@ class DataInExecution(CustomBaseModel):
 		if hasattr(self, key):
 			setattr(self, key, value)
 
-class Realtime(CustomBaseModel):
+class Realtime(BaseModel):
 	status: str
 	type: str
 	net_weight: str 
@@ -28,7 +29,7 @@ class Diagnostic(CustomBaseModel):
 	vl: str
 	rz: str
 
-class WeightExecuted(CustomBaseModel):
+class WeightExecuted(BaseModel):
 	net_weight: str
 	gross_weight: str
 	tare: str
@@ -37,6 +38,6 @@ class WeightExecuted(CustomBaseModel):
 	bil: str
 	status: str
 
-class Weight(CustomBaseModel):
+class Weight(BaseModel):
 	weight_executed: WeightExecuted
 	data_assigned: Optional[Union[DataInExecution, int]] = None
