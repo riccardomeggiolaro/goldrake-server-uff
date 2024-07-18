@@ -13,7 +13,6 @@ from serial import SerialException
 import socket
 from typing import Optional, Union
 import select
-import psutil
 # ==============================================================
 
 class Connection(BaseModel):
@@ -158,7 +157,6 @@ class SerialPort(Connection):
 		message = None
 		error_message = None
 		try:
-			read = None
 			if isinstance(self.conn, serial.Serial) and self.conn.is_open:
 				message = self.conn.readline()
 			else:
@@ -259,7 +257,7 @@ class Tcp(Connection):
 						break  # Se non ci sono più dati nel buffer, esci dal ciclo
 					# Accumula i dati ricevuti nel buffer
 					buffer += data
-				except BlockingIOError as e:
+				except BlockingIOError:
 					break
 		except Exception as e:
 			status = False
@@ -521,7 +519,7 @@ def serial_port_not_just_in_use_linux(port_name):
     """
     try:
         # Execute fuser with options to check serial port usage
-        process = subprocess.run(["fuser", "-s", port_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        subprocess.run(["fuser", "-s", port_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         # Non-zero return code from fuser indicates port usage
         message = f"Port {port_name} is just in use"
         return False, message

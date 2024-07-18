@@ -1,7 +1,7 @@
 from pydantic import BaseModel, validator
 from typing import Optional, Union, List
 from lib.lb_system import Connection, SerialPort, Tcp
-from modules.md_weigher.utils import terminalsClasses, weighers
+from modules.md_weigher.globals import terminalsClasses, weighers
 
 class ChangeSetupWeigherDTO(BaseModel):
 	max_weight: Optional[int] = None
@@ -28,7 +28,7 @@ class ChangeSetupWeigherDTO(BaseModel):
 	@validator('terminal', pre=True, always=True)
 	def check_terminal(cls, v, values, **kwargs):
 		for terminal in terminalsClasses:
-			if v == terminal["terminal"] or v == None:
+			if v == terminal["terminal"] or v is None:
 				return v
 		raise ValueError("Terminal don't exist")
 

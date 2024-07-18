@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from lib.lb_utils import CustomBaseModel
 from typing import Optional, Union
 
-class DataInExecution(BaseModel):
+class DataInExecution(CustomBaseModel):
 	customer: Optional[str] = None
 	supplier: Optional[str] = None
 	plate: Optional[str] = None
@@ -12,7 +12,7 @@ class DataInExecution(BaseModel):
 		if hasattr(self, key):
 			setattr(self, key, value)
 
-class Realtime(BaseModel):
+class Realtime(CustomBaseModel):
 	status: str
 	type: str
 	net_weight: str 
@@ -20,7 +20,7 @@ class Realtime(BaseModel):
 	tare: str
 	unite_measure: str
 	
-class Diagnostic(BaseModel):
+class Diagnostic(CustomBaseModel):
 	status: int
 	firmware: str
 	model_name: str
@@ -28,7 +28,7 @@ class Diagnostic(BaseModel):
 	vl: str
 	rz: str
 
-class WeightExecuted(BaseModel):
+class WeightExecuted(CustomBaseModel):
 	net_weight: str
 	gross_weight: str
 	tare: str
@@ -37,6 +37,6 @@ class WeightExecuted(BaseModel):
 	bil: str
 	status: str
 
-class Weight(BaseModel):
+class Weight(CustomBaseModel):
 	weight_executed: WeightExecuted
 	data_assigned: Optional[Union[DataInExecution, int]] = None

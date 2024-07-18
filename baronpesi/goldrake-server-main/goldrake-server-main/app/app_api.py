@@ -12,34 +12,20 @@
 import inspect
 __frame = inspect.currentframe()
 namefile = inspect.getfile(__frame).split("/")[-1].replace(".py", "")
-import lib.lb_log as lb_log
-import lib.lb_system as lb_system
-import lib.lb_config as lb_config
-import time
-import json
-import threading
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Path
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-import uvicorn
-import asyncio
-import os
-import signal
-import psutil
-from pydantic import BaseModel, Field, validator, parse_obj_as
-from typing import Optional, Union, List
-from pydantic._internal._model_construction import ModelMetaclass
-import copy
-import serial
-import serial.tools.list_ports as ports
-from pydantic import ValidationError
-import modules.md_weigher.md_weigher as weigher
+import lib.lb_log as lb_log  # noqa: E402
+import lib.lb_system as lb_system  # noqa: E402
+import lib.lb_config as lb_config  # noqa: E402
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+import uvicorn  # noqa: E402
+import asyncio  # noqa: E402
+import psutil  # noqa: E402
+import modules.md_weigher.md_weigher as weigher  # noqa: E402
 # import modules.md_rfid as rfid
-from modules.md_weigher.types import DataInExecution
-import lib.lb_database as lb_database
-from datetime import datetime
-from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO
-from lib.lb_system import SerialPort, Tcp
+from modules.md_weigher.types import DataInExecution  # noqa: E402
+from modules.md_weigher.dto import SetupWeigherDTO, ConfigurationDTO, ChangeSetupWeigherDTO  # noqa: E402
+from lib.lb_system import SerialPort, Tcp  # noqa: E402
+from typing import Optional, Union  # noqa: E402
 # ==============================================================
 
 # ==== FUNZIONI RICHIAMABILI DENTRO LA APPLICAZIONE =================
@@ -126,7 +112,7 @@ def mainprg():
 
 	@app.get("/stop/all_command")
 	async def StopAllCommand(node: Optional[str] = None):
-		result = weigher.setModope(node=node, modope="OK")
+		result = weigher.setModope(node=node, modope="")
 		return {
 			"status_command": result
 		}
@@ -152,7 +138,7 @@ def mainprg():
 				data = weigher.DataInExecution(**data)
 		result = weigher.setModope(node=node, modope="WEIGHING", data_assigned=data)
 		if result:
-			data_in_execution = weigher.deleteDataInExecution(node=node)
+			weigher.deleteDataInExecution(node=node)
 			return {
 				"status_command": result
 			}

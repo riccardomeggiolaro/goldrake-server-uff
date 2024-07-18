@@ -1,6 +1,10 @@
-from lib.lb_system import ConfigConnection
+from pydantic import BaseModel
 import inspect
 
+class CustomBaseModel(BaseModel):
+    class Config:
+        protected_namespaces = ()
+        
 # controlla se il formato della callback è giusto, ovvero se è richiamabile e se ha 1 solo parametro
 def checkCallbackFormat(callback):
 	if callable(callback):
@@ -14,12 +18,3 @@ def checkCallbackFormat(callback):
 def callCallback(callback):
     if callable(callback):
         callback()
-
-# {
-#     "terminal": None,
-#     "class": None
-# }
-terminalsClasses = []
-connection = ConfigConnection()
-weighers = []
-time_between_actions = 0
